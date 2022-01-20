@@ -1,0 +1,52 @@
+pipelines:
+  default:
+    - step:
+        image: node:14.15.5-alpine3.10
+        caches:
+          - node
+        name: Run linter and tests
+        script:
+          - cp .env.dist .env
+          - npm install
+          - npm run lint
+          - npm run coverage
+
+  pull-requests:
+    '**':
+      - step: 
+          name: build and install
+          image: tshio/e2e-runner:v4.0.2.3
+          caches:
+            - node
+            - cypress
+            - cypress-node
+          script:
+            - cp .env.dist .env
+            - npm install
+            - npm run build:ci
+            - cd e2e && npm install && cd ..
+          artifacts:
+            - build/**
+            - e2e/node_modules/**
+      - parallel:
+        - step:
+            name: e2e - firefox
+            image: tshio/e2e-runner:v4.0.2.3
+            caches:
+              - node
+            script:
+              - cp .env.e2e.dist ./e2e/.env
+              - npm run e2e:ci:firefox
+        - step:
+            name: e2e - chrome
+            image: tshio/e2e-runner:v4.0.2.2
+            caches:
+              - node
+            script:
+              - cp .env.e2e.dist ./e2e/.env
+              - npm run e2e:ci:chrome
+
+definitions:
+  caches:
+    cypress: $HOME/.cache/Cypress
+    cypress-node: ./e2e/node_modules
